@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personalized Shopping Demo</title>
+    <!-- Load Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Use Inter font */
+        html {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+    <!-- Import Inter font from Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-gray-100">
+
+    <div class="container mx-auto max-w-7xl p-4 sm:p-8">
+        
+        <!-- Header -->
+        <header class="mb-8 p-6 bg-white rounded-lg shadow-md">
+            <h1 class="text-3xl font-bold text-center text-gray-800">E-Commerce Recommendation Engine</h1>
+            <p class="text-center text-gray-600 mt-2">A demo showing proactive (filter-based) and reactive (history-based) suggestions.</p>
+        </header>
+
+        <!-- Main Content Grid -->
+        <div class="flex flex-col lg:flex-row gap-8">
+
+            <!-- Left Column: Products -->
+            <main class="w-full lg:w-2/3">
+                <h2 class="text-2xl font-bold mb-4 text-gray-700">Available Products</h2>
+                <div id="product-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                    <!-- Product cards will be dynamically inserted here -->
+                </div>
+            </main>
+
+            <!-- Right Column: Sidebar (History & Recommendations) -->
+            <aside class="w-full lg:w-1/3 space-y-8">
+                
+                <!-- Purchase History Card -->
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold text-gray-700">Purchase History</h2>
+                        <button id="clear-history" class="text-sm text-blue-600 hover:text-blue-800 font-medium">Clear History</button>
+                    </div>
+                    <ul id="history-list" class="list-disc list-inside space-y-2 text-gray-600 h-40 overflow-y-auto border p-4 rounded-md bg-gray-50">
+                        <li id="history-placeholder" class="italic text-gray-400">Your purchases will appear here...</li>
+                    </ul>
+                </div>
+                
+                <!-- NEW: Filter Card -->
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h2 class="text-2xl font-bold mb-4 text-gray-700">Find Your Style</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="filter-age" class="block text-sm font-medium text-gray-700">Age Range</label>
+                            <select id="filter-age" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                                <option value="any">Any Age</option>
+                                <option value="teen">Teen (13-19)</option>
+                                <option value="young-adult">Young Adult (20-30)</option>
+                                <option value="adult">Adult (30+)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="filter-gender" class="block text-sm font-medium text-gray-700">Gender</label>
+                            <select id="filter-gender" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                                <option value="any">Any Gender</option>
+                                <option value="men">Men</option>
+                                <option value="women">Women</option>
+                                <option value="unisex">Unisex</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="filter-occasion" class="block text-sm font-medium text-gray-700">Occasion</label>
+                            <select id="filter-occasion" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                                <option value="any">Any Occasion</option>
+                                <option value="casual">Casual</option>
+                                <option value="formal">Formal</option>
+                                <option value="sport">Sport</option>
+                            </select>
+                        </div>
+                        <button id="filter-button" class="w-full bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors">
+                            Find Popular Items
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Recommendations Card (Now holds both types) -->
+                <div class="bg-white p-6 rounded-lg shadow-md sticky top-8">
+                    <h2 class="text-2xl font-bold mb-4 text-gray-700">Your Recommendations</h2>
+                    
+                    <!-- NEW: Filter-based recommendations go here -->
+                    <div id="filtered-recommendation-area" class="space-y-6 mb-6 border-b pb-6">
+                        <p id="filtered-reco-placeholder" class="text-center text-gray-500 italic p-4">Use the filters above to find items popular for your style.</p>
+                    </div>
+                    
+                    <!-- History-based recommendations go here -->
+                    <div id="history-recommendation-area" class="space-y-6">
+                        <p id="history-reco-placeholder" class="text-center text-gray-500 italic p-4">Buy an item to see recommendations based on your history.</p>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. DEFINE DATA ---
+
+        // UPDATED: Products now have 'tags' for filtering
+        const allProducts = [
+            // Red Products
+            { id: 1, name: "Classic T-Shirt", color: "red", colorHex: "ef4444", type: "T-Shirt", 
+              // Image: Red t-shirt on a hanger
+              imageUrl: "data:image/jpeg;base64,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", 
+              tags: { age: ['teen', 'young-adult', 'adult'], gender: ['unisex'], occasion: ['casual'] } 
+            },
+            { id: 2, name: "Casual Pants", color: "red", colorHex: "dc2626", type: "Pants", 
+              // Image: Person wearing red casual pants
+              imageUrl: "https://i5.walmartimages.com/asr/2cb2289f-f6de-4d94-ad37-5aa532221520.3e84e3abd3c87dad1d87ed0e35b1f3ca.jpeg?odnHeight=768&odnWidth=768&odnBg=FFFFFF", 
+              tags: { age: ['teen', 'young-adult'], gender: ['unisex'], occasion: ['casual'] } 
+            },
+            { id: 3, name: "Running Shoes", color: "red", colorHex: "b91c1c", type: "Shoes", 
+              // Image: Pair of red running shoes
+              imageUrl: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80", 
+              tags: { age: ['teen', 'young-adult'], gender: ['unisex'], occasion: ['sport'] } 
+            },
+            
+            // Blue Products
+            { id: 4, name: "Polo T-Shirt", color: "blue", colorHex: "3b82f6", type: "T-Shirt", 
+              // Image: Blue polo shirt on a hanger
+              imageUrl: "https://chriscross.in/cdn/shop/files/ChrisCrossNavyBlueCottonT-Shirt.jpg?v=1740994598&width=2048", 
+              tags: { age: ['young-adult', 'adult'], gender: ['men'], occasion: ['casual', 'formal'] } 
+            },
+            { id: 5, name: "Denim Jeans", color: "blue", colorHex: "2563eb", type: "Pants", 
+              // Image: Person wearing blue denim jeans
+              imageUrl: "https://dland.co.in/cdn/shop/files/1E5A0900.jpg?v=1716813497&width=1080", 
+              tags: { age: ['teen', 'young-adult', 'adult'], gender: ['unisex'], occasion: ['casual'] } 
+            },
+            { id: 6, name: "Blue Sneakers", color: "blue", colorHex: "1d4ed8", type: "Shoes", 
+              // Image: Pair of blue sneakers
+              imageUrl: "https://images.unsplash.com/photo-1515955656352-a1fa3ffcd111?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80", 
+              tags: { age: ['teen', 'young-adult'], gender: ['unisex'], occasion: ['casual', 'sport'] } 
+            },
+            
+            // Black Products
+            { id: 7, name: "V-Neck T-Shirt", color: "black", colorHex: "1f2937", type: "T-Shirt", 
+              // Image: Black v-neck t-shirt on a hanger
+              imageUrl: "https://images.unsplash.com/photo-1618354691373-d851c5c3a990?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80", 
+              tags: { age: ['young-adult', 'adult'], gender: ['unisex'], occasion: ['casual'] } 
+            },
+            { id: 8, name: "Formal Pants", color: "black", colorHex: "111827", type: "Pants", 
+              // Image: Black formal pants on a hanger
+              imageUrl: "https://assets.myntassets.com/dpr_1.5,q_30,w_400,c_limit,fl_progressive/assets/images/30142208/2024/7/24/74dc06ca-2828-4305-a9c6-ab5b3cf5d2411721816759641-Louis-Philippe-Men-Trousers-3601721816759097-1.jpg", 
+              tags: { age: ['young-adult', 'adult'], gender: ['men', 'women'], occasion: ['formal'] } 
+            },
+            { id: 9, name: "Leather Shoes", color: "black", colorHex: "000000", type: "Shoes", 
+              // Image: Pair of black leather shoes
+              imageUrl: "https://loveforleather.in/cdn/shop/files/ASK05522.jpg?v=1715678283&width=1445", 
+              tags: { age: ['adult'], gender: ['men', 'women'], occasion: ['formal'] } 
+            },
+            
+            // Beige Products
+            { id: 10, name: "Henley T-Shirt", color: "beige", colorHex: "f5f5f4", type: "T-Shirt", 
+               // Image: Beige henley t-shirt
+               imageUrl: "https://images-cdn.ubuy.co.in/6689450d4d0d390bac048f44-ytd-mens-summer-casual-short-sleeve.jpg", 
+               tags: { age: ['young-adult', 'adult'], gender: ['men'], occasion: ['casual'] } 
+            },
+            { id: 11, name: "Beige Chinos", color: "beige", colorHex: "e7e5e4", type: "Pants", 
+               // Image: Person wearing beige chinos
+               imageUrl: "https://www.subtract.in/cdn/shop/files/SUBCT002-BEIGE-32_2_1080x.jpg?v=1754677741", 
+               tags: { age: ['young-adult', 'adult'], gender: ['men'], occasion: ['casual', 'formal'] } 
+            },
+            { id: 12, name: "Suede Loafers", color: "beige", colorHex: "d6d3d1", type: "Shoes", 
+               // Image: Pair of beige suede loafers
+               imageUrl: "https://www.scarosso.com/dw/image/v2/BGDG_PRD/on/demandware.static/-/Sites-17/default/dw0727ea2a/images/zoom/STEFANOLOAF_BEGSUED_03.jpg?strip=false", 
+               tags: { age: ['adult'], gender: ['men', 'women'], occasion: ['casual', 'formal'] } 
+            }
+        ];
+
+        const colorPairings = {
+            red: ["blue", "black", "beige"],
+            blue: ["red", "black", "beige"],
+            black: ["red", "blue", "beige"],
+            beige: ["red", "blue", "black"]
+        };
+
+        let purchaseHistory = [];
+
+        // --- 2. GET HTML ELEMENTS ---
+        const productGrid = document.getElementById('product-grid');
+        const historyList = document.getElementById('history-list');
+        const historyPlaceholder = document.getElementById('history-placeholder');
+        const clearHistoryButton = document.getElementById('clear-history');
+
+        // NEW Filter Elements
+        const filterAge = document.getElementById('filter-age');
+        const filterGender = document.getElementById('filter-gender');
+        const filterOccasion = document.getElementById('filter-occasion');
+        const filterButton = document.getElementById('filter-button');
+
+        // UPDATED Recommendation Area Elements
+        const filteredRecommendationArea = document.getElementById('filtered-recommendation-area');
+        const historyRecommendationArea = document.getElementById('history-recommendation-area');
+        const filteredRecoPlaceholder = document.getElementById('filtered-reco-placeholder');
+        const historyRecoPlaceholder = document.getElementById('history-reco-placeholder');
+
+
+        // --- 3. CORE FUNCTIONS ---
+
+        /**
+         * Simulates buying an item. Triggers history-based recommendations.
+         */
+        function buyItem(productId) {
+            const product = allProducts.find(p => p.id === productId);
+            if (product) {
+                purchaseHistory.push(product);
+                renderHistory();
+                updateHistoryRecommendations();
+            }
+        }
+
+        /**
+         * Renders the purchase history list
+         */
+        function renderHistory() {
+            historyList.innerHTML = '';
+            if (purchaseHistory.length === 0) {
+                historyList.appendChild(historyPlaceholder);
+            } else {
+                purchaseHistory.forEach(item => {
+                    const li = document.createElement('li');
+                    li.textContent = `Bought: ${item.name} (${item.color})`;
+                    li.className = "capitalize";
+                    historyList.appendChild(li);
+                });
+            }
+        }
+
+        /**
+         * NEW: Filters products based on dropdowns and renders them.
+         */
+        function findOutfits() { // Renamed from filterProducts
+            const age = filterAge.value;
+            const gender = filterGender.value;
+            const occasion = filterOccasion.value;
+            
+            // 1. Find all products that match the filters
+            const matchingProducts = allProducts.filter(p => {
+                const ageMatch = age === 'any' || p.tags.age.includes(age);
+                const genderMatch = gender === 'any' || p.tags.gender.includes(gender);
+                const occasionMatch = occasion === 'any' || p.tags.occasion.includes(occasion);
+                return ageMatch && genderMatch && occasionMatch;
+            });
+
+            // 2. Separate them by type
+            const strictMatchingTopwear = matchingProducts.filter(p => p.type === 'T-Shirt');
+            const strictMatchingBottomwear = matchingProducts.filter(p => p.type === 'Pants');
+            const strictMatchingFootwear = matchingProducts.filter(p => p.type === 'Shoes');
+
+            let outfit = null; // We will find just one outfit
+            
+            // --- NEW: Fallback logic to ensure we always have options ---
+            // If no items match the strict criteria for a category,
+            // fall back to *all* items of that type to build an outfit.
+            const topwearToUse = strictMatchingTopwear.length > 0 
+                ? strictMatchingTopwear 
+                : allProducts.filter(p => p.type === 'T-Shirt');
+            
+            const bottomwearToUse = strictMatchingBottomwear.length > 0
+                ? strictMatchingBottomwear
+                : allProducts.filter(p => p.type === 'Pants');
+            
+            const footwearToUse = strictMatchingFootwear.length > 0
+                ? strictMatchingFootwear
+                : allProducts.filter(p => p.type === 'Shoes');
+            // --- End of new logic ---
+
+
+            // 3. Try to assemble one single, complete outfit
+            // UPDATED: Check ...ToUse lists instead of strictMatching... lists
+            if (topwearToUse.length > 0 && bottomwearToUse.length > 0 && footwearToUse.length > 0) {
+                
+                // Take the first matching top
+                const top = topwearToUse[0]; 
+                
+                // Try to find a compatible bottom, or fall back to the first one
+                const bottom = bottomwearToUse.find(b => 
+                                    b.color === top.color || (colorPairings[top.color] && colorPairings[top.color].includes(b.color))) 
+                             || bottomwearToUse[0];
+                
+                // Try to find a compatible shoe (that matches top or bottom), or fall back to the first one
+                const shoes = footwearToUse.find(s => 
+                                s.color === top.color || s.color === bottom.color ||
+                                (colorPairings[top.color] && colorPairings[top.color].includes(s.color)) || 
+                                (colorPairings[bottom.color] && colorPairings[bottom.color].includes(s.color))) 
+                            || footwearToUse[0];
+
+                outfit = { top, bottom, shoes };
+            }
+
+            // 4. Render the single outfit (or null if none found)
+            renderFilteredRecommendations(outfit, {age, gender, occasion});
+        }
+
+        /**
+         * NEW: Renders the "Popular Items" section based on filters.
+         */
+        function renderFilteredRecommendations(outfit, filters) { // Now accepts a single outfit object
+            filteredRecommendationArea.innerHTML = ''; // Clear previous
+            
+            // Create a dynamic title
+            let title = outfit ? "Popular Outfit For You" : "No Outfit Found";
+            let subtitle = `Matching: ${filters.age !== 'any' ? capitalize(filters.age) : ''} ${filters.gender !== 'any' ? capitalize(filters.gender) : ''} ${filters.occasion !== 'any' ? capitalize(filters.occasion) : ''}`;
+            if (subtitle.trim() === "Matching:") subtitle = "Showing popular outfit across all categories.";
+            
+            if (!outfit) {
+                subtitle = "No complete outfits match your criteria. Try broadening your search!";
+            }
+
+
+            const section = document.createElement('div');
+            let titleColor = 'text-blue-600';
+            
+            // Render the single outfit card if it exists
+            const outfitCardHtml = outfit 
+                ? createOutfitCard(outfit, 1) 
+                : '';
+
+            section.innerHTML = `
+                <h3 class="text-lg font-semibold ${titleColor}">${title}</h3>
+                <p class="text-sm text-gray-500 mb-3">${subtitle}</p>
+                <div class="space-y-4">
+                     ${outfitCardHtml}
+                </div>
+            `;
+            filteredRecommendationArea.appendChild(section);
+        }
+
+
+        /**
+         * UPDATED: The "Algorithm" function for HISTORY.
+         * Now renders to its own specific area.
+         */
+        function updateHistoryRecommendations() {
+            historyRecommendationArea.innerHTML = '';
+            if (purchaseHistory.length === 0) {
+                historyRecommendationArea.appendChild(historyRecoPlaceholder);
+                return;
+            }
+
+            const colorCounts = {};
+            purchaseHistory.forEach(item => {
+                colorCounts[item.color] = (colorCounts[item.color] || 0) + 1;
+            });
+
+            let favoriteColor = null;
+            let maxCount = 0;
+            for (const color in colorCounts) {
+                if (colorCounts[color] > maxCount) {
+                    maxCount = colorCounts[color];
+                    favoriteColor = color;
+                }
+            }
+
+            if (!favoriteColor) return;
+
+            // 1. "Favorite Color" Recommendations
+            const favoriteColorItems = allProducts.filter(p => p.color === favoriteColor);
+            renderHistoryRecommendationSection(
+                `Your Favorite Color: ${capitalize(favoriteColor)}`,
+                "Based on your frequent purchases.",
+                favoriteColorItems,
+                "favorite"
+            );
+
+            // 2. "Goes Well With" Recommendations
+            const complementaryColors = colorPairings[favoriteColor] || [];
+            const complementaryItems = allProducts.filter(p => complementaryColors.includes(p.color));
+            
+            if (complementaryItems.length > 0) {
+                renderHistoryRecommendationSection(
+                    `Goes Well With ${capitalize(favoriteColor)}`,
+                    `Try pairing ${favoriteColor} with these colors.`,
+                    complementaryItems,
+                    "complementary"
+                );
+            }
+        }
+
+        /**
+         * UPDATED: Renders a HISTORY recommendation section.
+         */
+        function renderHistoryRecommendationSection(title, subtitle, items, type) {
+            const section = document.createElement('div');
+            let titleColor = type === 'favorite' ? 'text-red-600' : 'text-green-600';
+            
+            section.innerHTML = `
+                <h3 class="text-lg font-semibold ${titleColor}">${title}</h3>
+                <p class="text-sm text-gray-500 mb-3">${subtitle}</p>
+                <div class="grid grid-cols-2 gap-3">
+                    ${items.map(item => createRecoProductCard(item)).join('')}
+                </div>
+            `;
+            historyRecommendationArea.appendChild(section);
+        }
+
+        /**
+         * Clears history and resets the demo
+         */
+        function clearHistory() {
+            purchaseHistory = [];
+            renderHistory();
+            updateHistoryRecommendations();
+        }
+
+        // --- 4. HELPER & UI FUNCTIONS ---
+
+        /**
+         * NEW: Creates the HTML for a complete outfit card.
+         */
+        function createOutfitCard(outfit, index) {
+            return `
+                <div class="border rounded-lg p-3 bg-gray-50 shadow-sm">
+                    <h4 class="font-semibold text-gray-700 mb-2">Outfit ${index}</h4>
+                    <div class="space-y-2">
+                        ${createRecoProductCard(outfit.top)}
+                        ${createRecoProductCard(outfit.bottom)}
+                        ${createRecoProductCard(outfit.shoes)}
+                    </div>
+                </div>
+            `;
+        }
+
+        /**
+         * Creates the HTML for a product card in the main store
+         */
+        function createStoreProductCard(product) {
+            return `
+                <div class="bg-white rounded-lg shadow-md overflow-hidden transition-transform hover:scale-105">
+                    <div class="w-full h-48 bg-gray-200">
+                        <img src="${product.imageUrl}" 
+                             alt="${product.name}" 
+                             class="w-full h-full object-cover">
+                    </div>
+                    <div class="p-4">
+                        <h3 class="text-lg font-semibold capitalize">${product.name}</h3>
+                        <p class="text-gray-600 capitalize mb-4">${product.color} ${product.type}</p>
+                        <button 
+                            onclick="buyItem(${product.id})"
+                            class="w-full bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors">
+                            Buy Now
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        /**
+         * Creates the HTML for a smaller recommendation card (used by both systems)
+         */
+        function createRecoProductCard(product) {
+            return `
+                <div class="rounded-lg shadow-sm overflow-hidden border border-gray-200">
+                    <div class="w-full h-24 bg-gray-200">
+                         <img src="${product.imageUrl}" 
+                             alt="${product.name}" 
+                             class="w-full h-full object-cover">
+                    </div>
+                    <div class="p-2 bg-white">
+                        <h4 class="text-sm font-medium capitalize truncate">${product.name}</h4>
+                        <p class="text-xs text-gray-500 capitalize">${product.color}</p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        /**
+         * Utility to capitalize strings
+         */
+        function capitalize(s) {
+            if (!s) return '';
+            return s.charAt(0).toUpperCase() + s.slice(1).replace('-', ' ');
+        }
+
+        // --- 5. INITIALIZE THE APP ---
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            // Populate the store
+            productGrid.innerHTML = allProducts.map(createStoreProductCard).join('');
+
+            // Add listener for the clear history button
+            clearHistoryButton.addEventListener('click', clearHistory);
+            
+            // NEW: Add listener for the filter button
+            filterButton.addEventListener('click', findOutfits); // Updated this to call findOutfits
+        });
+
+    </script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
